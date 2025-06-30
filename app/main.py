@@ -54,12 +54,12 @@ def f1_score(y_true, y_pred, threshold=0.5):
 # --- Загрузка моделей и вспомогательных данных ---
 try:
     model_image = load_model(
-        "app/multi_label_classifier_improved.h5",
+        "./multi_label_classifier_improved.h5",
         custom_objects={'f1_score': f1_score}
     )
-    model_text = joblib.load("app/logistic_regression_model.joblib")
-    vectorizer = joblib.load("app/tfidf_vectorizer.joblib")
-    label_encoder = joblib.load("app/label_encoder.joblib")
+    model_text = joblib.load("./logistic_regression_model.joblib")
+    vectorizer = joblib.load("./tfidf_vectorizer.joblib")
+    label_encoder = joblib.load("./label_encoder.joblib")
 
     # Вместо загрузки из файлов определяем вручную классы
     mlb_subcat_classes = [
