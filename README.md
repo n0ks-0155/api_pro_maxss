@@ -157,8 +157,6 @@ Image Processing: pillow, OpenCV
 
 Model Serialization: Joblib, HDF5
 
-print(response.json())
-
 ### Дополнительно
 
 API-ключ - это ещё один метод аутентификации, он похож на JWT, но отличается простотой реализации и отсутствием криптографической защиты. 
