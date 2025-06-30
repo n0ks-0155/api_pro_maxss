@@ -17,7 +17,7 @@ import io
 import aiohttp
 import tensorflow as tf
 
-# --- Конфигурация ---
+#Config
 API_KEY = "123123"
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
@@ -40,9 +40,7 @@ IMAGE_SIZE = (224, 224)
 THRESHOLD = 0.5  # Порог для классификации в модели картинок
 TTA_STEPS = 5  # Число шагов TTA
 
-
-# --- Кастомная метрика-заглушка для загрузки модели ---
-def f1_score(y_true, y_pred, threshold=0.5):
+def f1_score(y_true, y_pred, threshold=0.5):      #Заглушка
     y_pred = tf.cast(y_pred > threshold, tf.float32)
     y_true = tf.cast(y_true, tf.float32)
     tp = tf.reduce_sum(y_true * y_pred)
@@ -50,9 +48,7 @@ def f1_score(y_true, y_pred, threshold=0.5):
     recall = tp / (tf.reduce_sum(y_true) + 1e-7)
     return 2 * (precision * recall) / (precision + recall + 1e-7)
 
-
-# --- Загрузка моделей и вспомогательных данных ---
-try:
+try:                                                #Загрузка моделей
     model_image = load_model(
         "./multi_label_classifier_improved.h5",
         custom_objects={'f1_score': f1_score}
@@ -61,9 +57,8 @@ try:
     vectorizer = joblib.load("./tfidf_vectorizer.joblib")
     label_encoder = joblib.load("./label_encoder.joblib")
 
-    # Вместо загрузки из файлов определяем вручную классы
-    mlb_subcat_classes = [
-        "Пистолеты", "Винтовки", "Дробовики", "Гранатомёты",
+    mlb_subcat_classes = [                                   
+        "Пистолеты", "Винтовки", "Дробовики", "Гранатомёты",       #Определение классов
         "Тактические жилеты", "Шлемы", "Перчатки", "Очки",
         "Патроны", "Гранаты", "Газовые баллончики"
     ]
@@ -73,11 +68,10 @@ try:
 except Exception as e:
     logging.error(f"Error loading models or classes: {e}")
     raise RuntimeError("Failed to load models or class labels")
-
-# --- FastAPI ---
-app = FastAPI(
+    
+app = FastAPI(                                            #Сам API-сервер
     title="StrikeGear Classifier API",
-    description="API для классификации изображений и текста оружия",
+    description="API для классификации изображений и текста вооружения",
     version="1.0.0"
 )
 
@@ -90,9 +84,8 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-
-# --- Pydantic модели ---
-class PhotoUrl(BaseModel):
+                             
+class PhotoUrl(BaseModel):              #Pydantic
     photo_id: str
     url: str
 
@@ -115,15 +108,13 @@ class PostResponse(BaseModel):
     post_id: str
     predictions: List[PredictionResult]
 
-
-# --- Авторизация ---
-def get_api_key(api_key: str = Depends(api_key_header)):
+def get_api_key(api_key: str = Depends(api_key_header)):        #Authorisation
     if api_key != API_KEY:
         raise HTTPException(status_code=403, detail="Invalid API Key")
     return api_key
 
 
-# --- Обработчики ошибок ---
+                                                                #Обработчик
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(
@@ -132,8 +123,6 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         headers={"Access-Control-Allow-Origin": "*"}
     )
 
-
-# --- Утилиты ---
 async def download_image(url: str):
     try:
         async with aiohttp.ClientSession() as session:
@@ -185,13 +174,11 @@ def predict_text(text: str):
         return None
 
 
-# Функция предсказания с TTA из вашего кода обучения модели
 def predict_image(image_array, tta_steps=TTA_STEPS, threshold=THRESHOLD):
     subcat_preds = []
     cat_preds = []
 
     for _ in range(tta_steps):
-        # Генерируем аугментацию для TTA
         augmented_img = tf.image.random_flip_left_right(image_array)
         augmented_img = tf.image.random_brightness(augmented_img, 0.1)
         augmented_img = tf.expand_dims(augmented_img, axis=0)
@@ -202,18 +189,15 @@ def predict_image(image_array, tta_steps=TTA_STEPS, threshold=THRESHOLD):
     subcat_pred_avg = np.mean(subcat_preds, axis=0)
     cat_pred_avg = np.mean(cat_preds, axis=0)
 
-    # Получаем индексы с вероятностью выше порога
     subcat_indices = np.where(subcat_pred_avg[0] > threshold)[0]
     cat_indices = np.where(cat_pred_avg[0] > threshold)[0]
 
-    # Используем реальные классы MultiLabelBinarizer
     predicted_subcats = [mlb_subcat_classes[i] for i in subcat_indices]
     predicted_cats = [mlb_cat_classes[i] for i in cat_indices]
 
     subcat_probs = {mlb_subcat_classes[i]: float(subcat_pred_avg[0][i]) for i in range(subcat_pred_avg.shape[1])}
     cat_probs = {mlb_cat_classes[i]: float(cat_pred_avg[0][i]) for i in range(cat_pred_avg.shape[1])}
 
-    # Возьмём максимальную уверенность и соответствующий лейбл для подкатегории
     if len(subcat_indices) > 0:
         max_idx = subcat_indices[np.argmax(subcat_pred_avg[0][subcat_indices])]
         predicted_subcat = mlb_subcat_classes[max_idx]
@@ -222,7 +206,6 @@ def predict_image(image_array, tta_steps=TTA_STEPS, threshold=THRESHOLD):
         predicted_subcat = "Неизвестно"
         confidence = 0.0
 
-    # Аналогично для категории
     if len(cat_indices) > 0:
         max_cat_idx = cat_indices[np.argmax(cat_pred_avg[0][cat_indices])]
         predicted_cat = mlb_cat_classes[max_cat_idx]
@@ -237,7 +220,7 @@ def predict_image(image_array, tta_steps=TTA_STEPS, threshold=THRESHOLD):
     }
 
 
-# --- Эндпоинты ---
+                                                                #Эндроипнты
 
 @app.post("/predict/url", response_model=PostResponse)
 async def predict_from_url(
@@ -249,7 +232,7 @@ async def predict_from_url(
 
     predictions = []
 
-    # Предсказание по тексту
+                                                            #Предсказание по тексту
     if request.text:
         text_pred = predict_text(request.text)
         if text_pred:
@@ -261,7 +244,7 @@ async def predict_from_url(
                 photo_ids=[]
             ))
 
-    # Предсказание по фото (URL)
+                                                            #Предсказание по URL изображения
     if request.photos:
         for idx, photo in enumerate(request.photos):
             try:
@@ -280,7 +263,7 @@ async def predict_from_url(
                 logging.error(f"Error processing photo URL {photo.photo_id}: {e}")
 
     if not predictions:
-        raise HTTPException(status_code=400, detail="Не удалось обработать ни текст, ни изображения")
+        raise HTTPException(status_code=400, detail="Не удалось обработать текст и изображение")
 
     return PostResponse(post_id=request.post_id, predictions=predictions)
 
