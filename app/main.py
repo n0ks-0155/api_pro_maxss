@@ -16,6 +16,8 @@ from PIL import Image
 import io
 import aiohttp
 import tensorflow as tf
+from fastapi import Depends, HTTPException, Header
+from typing import Optional
 
 #Config
 API_KEY = "123123"
@@ -301,7 +303,32 @@ async def predict_from_upload(
                 photo_ids=[photo.filename or f"photo_{idx + 1}"]
             ))
 
-    return PostResponse(post_id=post_id, predictions=predictions)
+    return PostResponse(post_id=post_id, predictions=predictions
+
+async def get_current_user(api_key: str = Header(..., alias="X-API-Key")):
+    user_id = verify_api_key(api_key)
+    if not user_id:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+    return user_id
+
+@app.post("/predict")
+async def predict(
+    request: PostRequestSchema,
+    user_id: str = Depends(get_current_user)
+):
+    #Сохранение в БД с привязкой к пользователю
+    conn = sqlite3.connect('strikegear.db')
+    cursor = conn.cursor()
+    
+    cursor.execute(
+        "INSERT INTO predictions (user_id, post_id, predictions) VALUES (?, ?, ?)",
+        (user_id, request.post_id, request.json())
+    )
+    
+    conn.commit()
+    conn.close()
+    
+    return {"status": "success"}
 
 
 @app.get("/health")
