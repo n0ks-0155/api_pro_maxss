@@ -37,8 +37,8 @@ CATEGORIES = {
 }
 
 IMAGE_SIZE = (224, 224)
-THRESHOLD = 0.5  # Порог для классификации в модели картинок
-TTA_STEPS = 5  # Число шагов TTA
+THRESHOLD = 0.5
+TTA_STEPS = 5 
 
 def f1_score(y_true, y_pred, threshold=0.5):      #Заглушка
     y_pred = tf.cast(y_pred > threshold, tf.float32)
