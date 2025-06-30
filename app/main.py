@@ -52,12 +52,12 @@ def f1_score(y_true, y_pred, threshold=0.5):      #Заглушка
 
 try:                                                #Загрузка моделей
     model_image = load_model(
-        "./multi_label_classifier_improved.h5",
+        "multi_label_classifier_improved.h5",
         custom_objects={'f1_score': f1_score}
     )
-    model_text = joblib.load("./logistic_regression_model.joblib")
-    vectorizer = joblib.load("./tfidf_vectorizer.joblib")
-    label_encoder = joblib.load("./label_encoder.joblib")
+    model_text = joblib.load("logistic_regression_model.joblib")
+    vectorizer = joblib.load("tfidf_vectorizer.joblib")
+    label_encoder = joblib.load("label_encoder.joblib")
 
     mlb_subcat_classes = [                                   
         "Пистолеты", "Винтовки", "Дробовики", "Гранатомёты",       #Определение классов
